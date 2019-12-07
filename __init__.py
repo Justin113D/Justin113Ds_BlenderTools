@@ -5,11 +5,11 @@ bl_info = {
     "version": (1,0,0),
     "blender": (2, 81, 0),
     "location": "",
-    "description": "Several tools to make blender easier",
+    "description": "Several tools to make life in blender easier",
     "warning": "",
     "wiki_url": "",
     "support": 'COMMUNITY',
-    "category": "Rigging"}
+    "category": "General"}
 
 import bpy
 
@@ -28,6 +28,11 @@ class AverageWeight(bpy.types.Operator):
     bl_idname = "paint_weight.average"
     bl_label = "Average weight"
     bl_description = "Average the weights of the selected vertices"
+
+    @classmethod
+    def poll(self, context):
+        active = context.active_object
+        return active is not None and active.type == "MESH" and len(active.vertex_groups) > 0 and active.data.use_paint_mask or active.data.use_paint_mask_vertex and active.vertex_groups.active is not None
 
     def execute(self, context):
 
@@ -53,38 +58,51 @@ class AverageWeight(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class CleanWeights(bpy.types.Operator):
-    """Removes all empty weights from vertices"""
-    bl_idname = "object.clearweights"
-    bl_label = "Clean Weights"
-    bl_description = "Removes all empty weights from vertices"
-
-    def execute(self, context):
-        active = context.active_object
-        mesh = active.data
-
-        for v in mesh.vertices:
-            for g in active.vertex_groups:
-                try:
-                    if g.weight(v.index) < 0.001:
-                        g.remove([v.index])
-                except RuntimeError:
-                    pass
-
-        return {'FINISHED'}
-
 class RemoveUnusedWeights(bpy.types.Operator):
     """Removes all groups that are not used in the armature/s"""
     bl_idname = "object.removeunusedweights"
-    bl_label = "Remove unused"
-    bl_description = "Removes all groups that are not used in the armature/s"
+    bl_label = "Remove Unused"
+    bl_description = "Removes all groups that are not used in the assigned armature/s (from the object's armature modifier/s)"
+
+    @classmethod
+    def poll(self, context):
+        active = context.active_object
+        if active is None:
+            return False
+        hasArmature = False
+        for m in active.modifiers:
+            if m.type == 'ARMATURE':
+                if m.object is not None:
+                    hasArmature = True
+                    break
+
+        return len(active.vertex_groups) > 0 and hasArmature
 
     def execute(self, context):
 
         active = context.active_object
+
+        armatures = list()
+        for m in active.modifiers:
+            if m.type == 'ARMATURE':
+                if m.object is not None:
+                    armatures.append(m.object.data)
+
         used = list()
+        for a in armatures:
+            for b in a.bones:
+                if b.use_deform:
+                    used.append(b.name)
 
+        weights = list()
+        groups = active.vertex_groups
+        for w in groups:
+            weights.append(w.name)
 
+        for w in weights:
+            if w not in used:
+                g = groups[groups.find(w)]
+                groups.remove(g)
 
         return {'FINISHED'}
 
@@ -93,6 +111,11 @@ class RemoveEmptyWeights(bpy.types.Operator):
     bl_idname = "object.removeemptygroups"
     bl_label = "Remove Empty"
     bl_description = "Removes all groups with no weights"
+
+    @classmethod
+    def poll(self, context):
+        active = context.active_object
+        return active is not None and len(active.vertex_groups) > 0
 
     def execute(self, context):
         active = context.active_object
@@ -104,7 +127,7 @@ class RemoveEmptyWeights(bpy.types.Operator):
             vCount = 0
             for v in mesh.vertices:
                 try:
-                    if g.weight(v.index) != 0:
+                    if g.weight(v.index) > 0:
                         vCount += 1
                         break
                 except RuntimeError:
@@ -220,7 +243,6 @@ class PasteActiveCMs(bpy.types.Operator):
 
 classes = (
     AverageWeight,
-    CleanWeights,
     RemoveEmptyWeights,
     RemoveUnusedWeights,
     CopyActiveCMs,
@@ -232,7 +254,6 @@ def weightPaintFunc(self, context):
 
 def weightMenuFunc(self, context):
     self.layout.separator()
-    self.layout.operator(CleanWeights.bl_idname)
     self.layout.operator(RemoveEmptyWeights.bl_idname)
     self.layout.operator(RemoveUnusedWeights.bl_idname)
 
