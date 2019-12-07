@@ -15,7 +15,7 @@ _A set of tools i put together from time to time to make life in blender easier_
 A thing that was always missing from blender was to copy and paste specific modifiers or constraints, without deleting existing ones on the target object.
 I got tired of it too, and decided to add the functionality in myself! 
 
-To **copy** specific Modifiers/Constraints, simply collapse the constraints that you dont want to copy. Then hit **Ctrl + C**!  <br>
+To **copy** specific Modifiers/Constraints, simply collapse the modifiers/constraints that you dont want to copy. Then hit **Ctrl + C**!  <br>
 The cursor needs to be inside the corresponding menu, above some empty space. If all space is blocked, its easiest to just hover above one of the modifier's/constraints icons when copying.
 
 To **paste** them, press **Ctrl + V** into the menu! <br>
