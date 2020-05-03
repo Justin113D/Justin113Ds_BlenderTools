@@ -2,7 +2,7 @@
 bl_info = {
     "name": "Justin's Blender Tools",
     "author": "Justin113D",
-    "version": (1,0,0),
+    "version": (1,0,1),
     "blender": (2, 81, 0),
     "location": "",
     "description": "Several tools to make life in blender easier",
@@ -30,7 +30,7 @@ class AverageWeight(bpy.types.Operator):
     bl_description = "Average the weights of the selected vertices"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         active = context.active_object
         return active is not None and active.type == "MESH" and len(active.vertex_groups) > 0 and active.data.use_paint_mask or active.data.use_paint_mask_vertex and active.vertex_groups.active is not None
 
@@ -65,7 +65,7 @@ class RemoveUnusedWeights(bpy.types.Operator):
     bl_description = "Removes all groups that are not used in the assigned armature/s (from the object's armature modifier/s)"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         active = context.active_object
         if active is None:
             return False
@@ -113,7 +113,7 @@ class RemoveEmptyWeights(bpy.types.Operator):
     bl_description = "Removes all groups with no weights"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         active = context.active_object
         return active is not None and len(active.vertex_groups) > 0
 
@@ -141,6 +141,45 @@ class RemoveEmptyWeights(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class SymmetryizeLattice(bpy.types.Operator):
+    """Symmetrizes a lattice"""
+    bl_idname = "lattice.symmetrize"
+    bl_label = "Symmetrize"
+    bl_description = "Symmetrizes a lattice"
+
+    @classmethod
+    def poll(cls, context):
+        active = context.active_object
+        return  bpy.context.object.mode == "EDIT" and active is not None and active.type == "LATTICE"
+
+    def execute(self, context):
+        lattice = bpy.context.active_object
+        data = lattice.data
+        points = lattice.data.points
+
+        right = []
+        left = []
+
+        for p in points:
+            print(p.co)
+            if p.co[0] < 0:
+                right.append(p)
+            elif p.co[0] > 0:
+                left.append(p)
+
+        for i, r in enumerate(right):
+            for l in left:
+                if r.co[1] == l.co[1] and r.co[2] == l.co[2]:
+                    rC = round(r.co[0], 4)
+                    lC = round(l.co[0] * -1, 4)
+                    if rC == lC:
+                        r.co_deform[0] = l.co_deform[0] * -1
+                        r.co_deform[1] = l.co_deform[1]
+                        r.co_deform[2] = l.co_deform[2]
+                        break
+
+        return {'FINISHED'}
+
 class CopyActiveCMs(bpy.types.Operator):
     """Copies active modifiers / constraints to buffer"""
     bl_idname = "screen.copyactivecms"
@@ -148,7 +187,7 @@ class CopyActiveCMs(bpy.types.Operator):
     bl_description = "Copies opened modifiers/constraints into a buffer, ready to be pasted"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         cnt = context.area.spaces.active.context
         self.areaType = cnt
         return cnt == 'MODIFIER' or cnt == 'CONSTRAINT' or cnt == 'BONE_CONSTRAINT'
@@ -208,7 +247,7 @@ class PasteActiveCMs(bpy.types.Operator):
     bl_description = "Pastes buffered modifiers/constraints from buffer"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         cnt = context.area.spaces.active.context
         self.areaType = cnt
         return cnt == 'MODIFIER' or cnt == 'CONSTRAINT' or cnt == 'BONE_CONSTRAINT'
@@ -247,6 +286,7 @@ classes = (
     RemoveUnusedWeights,
     CopyActiveCMs,
     PasteActiveCMs,
+    SymmetryizeLattice,
     )
 
 def weightPaintFunc(self, context):
@@ -257,6 +297,9 @@ def weightMenuFunc(self, context):
     self.layout.operator(RemoveEmptyWeights.bl_idname)
     self.layout.operator(RemoveUnusedWeights.bl_idname)
 
+def latticeContextMenuFunc(self, context):
+    self.layout.operator(SymmetryizeLattice.bl_idname)
+
 addon_keymaps = []
 
 def register():
@@ -265,6 +308,8 @@ def register():
 
     bpy.types.VIEW3D_MT_paint_weight.append(weightPaintFunc)
     bpy.types.MESH_MT_vertex_group_context_menu.append(weightMenuFunc)
+    bpy.types.VIEW3D_MT_edit_lattice.append(latticeContextMenuFunc)
+    bpy.types.VIEW3D_MT_edit_lattice_context_menu.append(latticeContextMenuFunc)
 
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
