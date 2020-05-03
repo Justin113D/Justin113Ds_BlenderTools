@@ -143,37 +143,35 @@ class RemoveEmptyWeights(bpy.types.Operator):
 
 class SymmetryizeLattice(bpy.types.Operator):
     """Symmetrizes a lattice"""
-    bl_idname = "lattice.symmetrize"
-    bl_label = "Symmetrize"
+    bl_idname = "object.symmetrize"
+    bl_label = "Symmetrize lattice"
     bl_description = "Symmetrizes a lattice"
 
     @classmethod
     def poll(cls, context):
         active = context.active_object
-        return  bpy.context.object.mode == "EDIT" and active is not None and active.type == "LATTICE"
+        return  bpy.context.object.mode == "OBJECT" and active is not None and active.type == "LATTICE"
 
     def execute(self, context):
         lattice = bpy.context.active_object
         data = lattice.data
-        points = lattice.data.points
 
         right = []
         left = []
 
-        for p in points:
-            print(p.co)
+        for p in lattice.data.points:
             if p.co[0] < 0:
                 right.append(p)
             elif p.co[0] > 0:
                 left.append(p)
 
-        for i, r in enumerate(right):
+        for r in right:
             for l in left:
                 if r.co[1] == l.co[1] and r.co[2] == l.co[2]:
                     rC = round(r.co[0], 4)
-                    lC = round(l.co[0] * -1, 4)
+                    lC = round(-l.co[0], 4)
                     if rC == lC:
-                        r.co_deform[0] = l.co_deform[0] * -1
+                        r.co_deform[0] = -l.co_deform[0]
                         r.co_deform[1] = l.co_deform[1]
                         r.co_deform[2] = l.co_deform[2]
                         break
@@ -298,7 +296,9 @@ def weightMenuFunc(self, context):
     self.layout.operator(RemoveUnusedWeights.bl_idname)
 
 def latticeContextMenuFunc(self, context):
-    self.layout.operator(SymmetryizeLattice.bl_idname)
+    active = context.active_object
+    if bpy.context.object.mode == "OBJECT" and active is not None and active.type == "LATTICE":
+        self.layout.operator(SymmetryizeLattice.bl_idname)
 
 addon_keymaps = []
 
@@ -308,8 +308,8 @@ def register():
 
     bpy.types.VIEW3D_MT_paint_weight.append(weightPaintFunc)
     bpy.types.MESH_MT_vertex_group_context_menu.append(weightMenuFunc)
-    bpy.types.VIEW3D_MT_edit_lattice.append(latticeContextMenuFunc)
-    bpy.types.VIEW3D_MT_edit_lattice_context_menu.append(latticeContextMenuFunc)
+    bpy.types.VIEW3D_MT_object.append(latticeContextMenuFunc)
+    bpy.types.VIEW3D_MT_object_context_menu.append(latticeContextMenuFunc)
 
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
